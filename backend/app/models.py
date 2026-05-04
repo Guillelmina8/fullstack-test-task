@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime, timezone
 
@@ -10,12 +11,19 @@ def get_datetime_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    manager = "manager"
+    member = "member"
+
+
 # Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
+    role: UserRole = Field(default=UserRole.member)
 
 
 # Properties to receive via API on creation

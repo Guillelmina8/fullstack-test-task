@@ -70,11 +70,14 @@ export type UserCreate = {
     password: string;
 };
 
+export type UserRole = 'admin' | 'manager' | 'member';
+
 export type UserPublic = {
     email: string;
     is_active?: boolean;
     is_superuser?: boolean;
     full_name?: (string | null);
+    role?: UserRole;
     id: string;
     created_at?: (string | null);
 };

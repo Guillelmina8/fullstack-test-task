@@ -12,6 +12,77 @@ from tests.utils.user import create_random_user
 from tests.utils.utils import random_email, random_lower_string
 
 
+# ---------------------------------------------------------------------------
+# RBAC tests
+# ---------------------------------------------------------------------------
+
+
+def test_manager_can_list_users(
+    client: TestClient, manager_token_headers: dict[str, str]
+) -> None:
+    r = client.get(f"{settings.API_V1_STR}/users/", headers=manager_token_headers)
+    assert r.status_code == 200
+
+
+def test_member_cannot_list_users(
+    client: TestClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    r = client.get(f"{settings.API_V1_STR}/users/", headers=normal_user_token_headers)
+    assert r.status_code == 403
+
+
+def test_manager_cannot_create_user(
+    client: TestClient, manager_token_headers: dict[str, str]
+) -> None:
+    data = {"email": random_email(), "password": random_lower_string()}
+    r = client.post(
+        f"{settings.API_V1_STR}/users/", headers=manager_token_headers, json=data
+    )
+    assert r.status_code == 403
+
+
+def test_manager_can_view_any_user(
+    client: TestClient, manager_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db)
+    r = client.get(
+        f"{settings.API_V1_STR}/users/{user.id}", headers=manager_token_headers
+    )
+    assert r.status_code == 200
+
+
+def test_manager_cannot_update_user(
+    client: TestClient, manager_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db)
+    r = client.patch(
+        f"{settings.API_V1_STR}/users/{user.id}",
+        headers=manager_token_headers,
+        json={"full_name": "hacked"},
+    )
+    assert r.status_code == 403
+
+
+def test_manager_cannot_delete_user(
+    client: TestClient, manager_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db)
+    r = client.delete(
+        f"{settings.API_V1_STR}/users/{user.id}", headers=manager_token_headers
+    )
+    assert r.status_code == 403
+
+
+def test_member_cannot_view_other_user(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    user = create_random_user(db)
+    r = client.get(
+        f"{settings.API_V1_STR}/users/{user.id}", headers=normal_user_token_headers
+    )
+    assert r.status_code == 403
+
+
 def test_get_users_superuser_me(
     client: TestClient, superuser_token_headers: dict[str, str]
 ) -> None:
