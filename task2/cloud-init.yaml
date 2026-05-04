@@ -1,0 +1,68 @@
+#cloud-config
+# Runs automatically on first VPS boot.
+# Installs Docker, deploys Ghost, sets up Cloudflare Tunnel, and locks down SSH.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - curl
+  - ufw
+
+write_files:
+  - path: /opt/ghost/docker-compose.yml
+    permissions: "0644"
+    content: |
+      services:
+        ghost:
+          image: ghost:5-alpine
+          restart: always
+          ports:
+            - "127.0.0.1:2368:2368"
+          environment:
+            NODE_ENV: production
+            database__client: sqlite3
+            database__connection__filename: /var/lib/ghost/content/data/ghost.db
+          volumes:
+            - ghost_data:/var/lib/ghost/content
+
+      volumes:
+        ghost_data:
+
+  - path: /etc/cloudflared/config.yml
+    permissions: "0600"
+    content: |
+      # Cloudflare Tunnel config.
+      # Public hostnames are configured in the Cloudflare dashboard.
+      # This file is intentionally minimal — the tunnel token handles routing.
+
+runcmd:
+  # ---- Firewall: block inbound SSH from the public internet ----------------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # ---- Ghost ---------------------------------------------------------------
+  - docker compose -f /opt/ghost/docker-compose.yml up -d
+
+  # ---- Cloudflare Tunnel ---------------------------------------------------
+  # Download the latest cloudflared binary
+  - >
+    curl -fsSL
+    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+    -o /usr/local/bin/cloudflared
+  - chmod +x /usr/local/bin/cloudflared
+
+  # Install as a systemd service using the tunnel token injected by deploy.sh
+  - cloudflared service install __CF_TUNNEL_TOKEN__
+  - systemctl enable cloudflared
+  - systemctl start cloudflared
+
+final_message: |
+  Ghost + Cloudflare Tunnel setup complete.
+  Ghost is running on http://localhost:2368 (internal only).
+  Configure public hostnames in the Cloudflare Tunnel dashboard.

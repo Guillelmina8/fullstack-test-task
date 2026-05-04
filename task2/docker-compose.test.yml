@@ -1,0 +1,15 @@
+services:
+  ghost:
+    image: ghost:5-alpine
+    restart: always
+    ports:
+      - "2368:2368"
+    environment:
+      NODE_ENV: production
+      database__client: sqlite3
+      database__connection__filename: /var/lib/ghost/content/data/ghost.db
+    volumes:
+      - ghost_data:/var/lib/ghost/content
+
+volumes:
+  ghost_data:
